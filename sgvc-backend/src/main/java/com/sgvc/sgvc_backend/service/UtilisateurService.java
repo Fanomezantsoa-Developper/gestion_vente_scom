@@ -1,12 +1,18 @@
 package com.sgvc.sgvc_backend.service;
 
+import com.sgvc.sgvc_backend.dto.CreateUtilisateurRequest;
+import com.sgvc.sgvc_backend.dto.UpdateUtilisateurRequest;
+import com.sgvc.sgvc_backend.dto.UtilisateurResponse;
 import com.sgvc.sgvc_backend.entity.Role;
 import com.sgvc.sgvc_backend.entity.Utilisateur;
+import com.sgvc.sgvc_backend.exception.ConflictException;
+import com.sgvc.sgvc_backend.exception.ResourceNotFoundException;
+import com.sgvc.sgvc_backend.mapper.UtilisateurMapper;
 import com.sgvc.sgvc_backend.repository.RoleRepository;
 import com.sgvc.sgvc_backend.repository.UtilisateurRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -19,7 +25,6 @@ public class UtilisateurService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Autowired
     public UtilisateurService(UtilisateurRepository utilisateurRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder) {
@@ -28,48 +33,81 @@ public class UtilisateurService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public List<Utilisateur> getAllUtilisateurs() {
-        return utilisateurRepository.findAll();
+    public List<UtilisateurResponse> getAllUtilisateurs() {
+        return UtilisateurMapper.toResponseList(utilisateurRepository.findAll());
     }
 
-    public Utilisateur getUtilisateurById(Long id) {
-        return utilisateurRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Utilisateur introuvable avec l'id : " + id));
+    public List<UtilisateurResponse> rechercher(String q) {
+        return UtilisateurMapper.toResponseList(
+                utilisateurRepository.findByNomContainingIgnoreCaseOrEmailContainingIgnoreCase(q, q));
     }
 
-    public Utilisateur createUtilisateur(Utilisateur utilisateur) {
-        if (utilisateurRepository.existsByEmail(utilisateur.getEmail())) {
-            throw new RuntimeException("Un utilisateur avec cet email existe déjà : " + utilisateur.getEmail());
+    public UtilisateurResponse getUtilisateurById(Long id) {
+        return UtilisateurMapper.toResponse(getUtilisateurEntity(id));
+    }
+
+    @Transactional
+    public UtilisateurResponse createUtilisateur(CreateUtilisateurRequest request) {
+        if (utilisateurRepository.existsByEmail(request.getEmail())) {
+            throw new ConflictException("Un utilisateur avec cet email existe déjà : " + request.getEmail());
         }
 
-        utilisateur.setMotDePasse(passwordEncoder.encode(utilisateur.getMotDePasse()));
+        Utilisateur utilisateur = new Utilisateur();
+        utilisateur.setNom(request.getNom());
+        utilisateur.setEmail(request.getEmail());
+        utilisateur.setMotDePasse(passwordEncoder.encode(request.getMotDePasse()));
+        utilisateur.setActif(true);
+        utilisateur.setRoles(chargerRoles(request.getRoleIds()));
 
-        Set<Role> rolesComplets = new HashSet<>();
-        for (Role role : utilisateur.getRoles()) {
-            Role roleTrouve = roleRepository.findById(role.getId())
-                    .orElseThrow(() -> new RuntimeException("Rôle introuvable avec l'id : " + role.getId()));
-            rolesComplets.add(roleTrouve);
-        }
-        utilisateur.setRoles(rolesComplets);
-
-        return utilisateurRepository.save(utilisateur);
+        return UtilisateurMapper.toResponse(utilisateurRepository.save(utilisateur));
     }
 
-    public Utilisateur updateUtilisateur(Long id, Utilisateur utilisateurDetails) {
-        Utilisateur utilisateur = getUtilisateurById(id);
-        utilisateur.setNom(utilisateurDetails.getNom());
-        utilisateur.setEmail(utilisateurDetails.getEmail());
-        utilisateur.setActif(utilisateurDetails.isActif());
+    @Transactional
+    public UtilisateurResponse updateUtilisateur(Long id, UpdateUtilisateurRequest request) {
+        Utilisateur utilisateur = getUtilisateurEntity(id);
 
-        if (utilisateurDetails.getMotDePasse() != null && !utilisateurDetails.getMotDePasse().isBlank()) {
-            utilisateur.setMotDePasse(passwordEncoder.encode(utilisateurDetails.getMotDePasse()));
+        // Vérifier que l'email n'est pas déjà pris par un AUTRE utilisateur
+        utilisateurRepository.findByEmail(request.getEmail())
+                .filter(autre -> !autre.getId().equals(id))
+                .ifPresent(autre -> {
+                    throw new ConflictException("Un utilisateur avec cet email existe déjà : " + request.getEmail());
+                });
+
+        utilisateur.setNom(request.getNom());
+        utilisateur.setEmail(request.getEmail());
+        utilisateur.setActif(request.isActif());
+
+        // Mot de passe optionnel : vide = inchangé
+        if (request.getMotDePasse() != null && !request.getMotDePasse().isBlank()) {
+            utilisateur.setMotDePasse(passwordEncoder.encode(request.getMotDePasse()));
         }
 
-        return utilisateurRepository.save(utilisateur);
+        // Mise à jour des rôles
+        if (request.getRoleIds() != null) {
+            utilisateur.setRoles(chargerRoles(request.getRoleIds()));
+        }
+
+        return UtilisateurMapper.toResponse(utilisateurRepository.save(utilisateur));
     }
 
+    @Transactional
     public void deleteUtilisateur(Long id) {
-        Utilisateur utilisateur = getUtilisateurById(id);
+        Utilisateur utilisateur = getUtilisateurEntity(id);
         utilisateurRepository.delete(utilisateur);
+    }
+
+    private Utilisateur getUtilisateurEntity(Long id) {
+        return utilisateurRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable avec l'id : " + id));
+    }
+
+    private Set<Role> chargerRoles(List<Long> roleIds) {
+        Set<Role> roles = new HashSet<>();
+        for (Long roleId : roleIds) {
+            Role role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Rôle introuvable avec l'id : " + roleId));
+            roles.add(role);
+        }
+        return roles;
     }
 }

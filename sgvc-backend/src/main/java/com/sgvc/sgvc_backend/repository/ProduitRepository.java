@@ -18,4 +18,7 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
     // Bonus : trouver les produits en stock faible (utile pour le dashboard)
     List<Produit> findByStockLessThan(Integer seuil);
+
+    // Recherche par nom ou référence (insensible à la casse)
+    List<Produit> findByNomContainingIgnoreCaseOrReferenceContainingIgnoreCase(String nom, String reference);
 }

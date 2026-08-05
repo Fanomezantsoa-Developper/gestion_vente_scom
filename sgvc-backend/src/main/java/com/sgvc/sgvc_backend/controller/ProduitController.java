@@ -2,8 +2,11 @@ package com.sgvc.sgvc_backend.controller;
 
 import com.sgvc.sgvc_backend.entity.Produit;
 import com.sgvc.sgvc_backend.service.ProduitService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.sgvc.sgvc_backend.service.export.CsvExportService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +17,11 @@ import java.util.List;
 public class ProduitController {
 
     private final ProduitService produitService;
+    private final CsvExportService csvExportService;
 
-    @Autowired
-    public ProduitController(ProduitService produitService) {
+    public ProduitController(ProduitService produitService, CsvExportService csvExportService) {
         this.produitService = produitService;
+        this.csvExportService = csvExportService;
     }
 
     @GetMapping
@@ -41,14 +45,30 @@ public class ProduitController {
         return ResponseEntity.ok(produitService.getProduitsStockFaible(seuil));
     }
 
+    // GET /api/produits/recherche?q=cafe → recherche par nom ou référence
+    @GetMapping("/recherche")
+    public ResponseEntity<List<Produit>> rechercher(@RequestParam String q) {
+        return ResponseEntity.ok(produitService.rechercher(q));
+    }
+
+    // GET /api/produits/export-csv → export Excel du catalogue
+    @GetMapping("/export-csv")
+    public ResponseEntity<byte[]> exportCsv() {
+        byte[] csv = csvExportService.exporterProduits(produitService.getAllProduits());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=produits.csv")
+                .body(csv);
+    }
+
     @PostMapping
-    public ResponseEntity<Produit> createProduit(@RequestBody Produit produit) {
+    public ResponseEntity<Produit> createProduit(@Valid @RequestBody Produit produit) {
         Produit nouveauProduit = produitService.createProduit(produit);
         return ResponseEntity.status(HttpStatus.CREATED).body(nouveauProduit);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Produit> updateProduit(@PathVariable Long id, @RequestBody Produit produit) {
+    public ResponseEntity<Produit> updateProduit(@PathVariable Long id, @Valid @RequestBody Produit produit) {
         return ResponseEntity.ok(produitService.updateProduit(id, produit));
     }
 

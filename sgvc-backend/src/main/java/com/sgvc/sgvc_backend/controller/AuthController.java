@@ -3,9 +3,10 @@ package com.sgvc.sgvc_backend.controller;
 import com.sgvc.sgvc_backend.dto.LoginRequest;
 import com.sgvc.sgvc_backend.dto.LoginResponse;
 import com.sgvc.sgvc_backend.entity.Utilisateur;
+import com.sgvc.sgvc_backend.exception.UnauthorizedException;
 import com.sgvc.sgvc_backend.repository.UtilisateurRepository;
 import com.sgvc.sgvc_backend.security.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +21,6 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    @Autowired
     public AuthController(UtilisateurRepository utilisateurRepository,
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil) {
@@ -30,16 +30,16 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         Utilisateur utilisateur = utilisateurRepository.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email ou mot de passe incorrect"));
+                .orElseThrow(() -> new UnauthorizedException("Email ou mot de passe incorrect"));
 
         if (!passwordEncoder.matches(loginRequest.getMotDePasse(), utilisateur.getMotDePasse())) {
-            throw new RuntimeException("Email ou mot de passe incorrect");
+            throw new UnauthorizedException("Email ou mot de passe incorrect");
         }
 
         if (!utilisateur.isActif()) {
-            throw new RuntimeException("Ce compte est désactivé");
+            throw new UnauthorizedException("Ce compte est désactivé");
         }
 
         List<String> roles = utilisateur.getRoles().stream()
@@ -48,6 +48,6 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(utilisateur.getEmail(), roles);
 
-        return ResponseEntity.ok(new LoginResponse(token, utilisateur.getEmail(), roles));
+        return ResponseEntity.ok(new LoginResponse(token, utilisateur.getEmail(), utilisateur.getNom(), roles));
     }
 }

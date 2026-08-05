@@ -3,9 +3,11 @@ package com.sgvc.sgvc_backend.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
@@ -13,11 +15,19 @@ import java.util.function.Function;
 @Component
 public class JwtUtil {
 
-    // Clé secrète utilisée pour signer les tokens (en dev, générée au démarrage ;
-    // en prod, à mettre en variable d'environnement)
-    private final SecretKey secretKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
+    // Clé secrète lue depuis application.properties (base64).
+    // Elle est FIXE : les tokens restent valides après redémarrage du serveur.
+    private final SecretKey secretKey;
 
-    private final long EXPIRATION_MS = 1000 * 60 * 60 * 10; // 10 heures
+    private final long expirationMs;
+
+    public JwtUtil(
+            @Value("${app.jwt.secret}") String secretBase64,
+            @Value("${app.jwt.expiration-ms:36000000}") long expirationMs) {
+        byte[] cle = Base64.getDecoder().decode(secretBase64);
+        this.secretKey = Keys.hmacShaKeyFor(cle);
+        this.expirationMs = expirationMs;
+    }
 
     // Génère un token pour un utilisateur donné, en incluant ses rôles
     public String generateToken(String email, List<String> roles) {
@@ -25,7 +35,7 @@ public class JwtUtil {
                 .subject(email)
                 .claim("roles", roles)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(secretKey)
                 .compact();
     }

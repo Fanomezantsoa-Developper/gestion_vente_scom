@@ -11,11 +11,11 @@ export function AuthProvider({ children }) {
 
   const login = async (email, motDePasse) => {
     const response = await api.post('/auth/login', { email, motDePasse })
-    const { token, email: userEmail, roles } = response.data
+    const { token, email: userEmail, nom, roles } = response.data
 
     localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify({ email: userEmail, roles }))
-    setUser({ email: userEmail, roles })
+    localStorage.setItem('user', JSON.stringify({ email: userEmail, nom, roles }))
+    setUser({ email: userEmail, nom, roles })
   }
 
   const logout = () => {

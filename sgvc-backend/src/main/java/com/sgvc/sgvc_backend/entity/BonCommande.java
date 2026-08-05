@@ -1,6 +1,7 @@
 package com.sgvc.sgvc_backend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,10 +31,12 @@ public class BonCommande {
     @Column(nullable = false, length = 20)
     private String statut = "EN_ATTENTE"; // EN_ATTENTE, VALIDE, ANNULE
 
+    @NotNull(message = "Le vendeur est obligatoire")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendeur_id", nullable = false)
     private Vendeur vendeur;
 
+    @NotNull(message = "Le client est obligatoire")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;

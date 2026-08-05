@@ -17,4 +17,7 @@ public interface VendeurRepository extends JpaRepository<Vendeur, Long> {
     // Méthode utile pour la logique métier : trouver tous les vendeurs d'un rayon
     // donné
     List<Vendeur> findByRayonId(Long rayonId);
+
+    // Recherche par nom ou prénom (insensible à la casse)
+    List<Vendeur> findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCase(String nom, String prenom);
 }

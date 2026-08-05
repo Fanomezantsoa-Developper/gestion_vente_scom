@@ -2,7 +2,7 @@ package com.sgvc.sgvc_backend.controller;
 
 import com.sgvc.sgvc_backend.entity.Rayon;
 import com.sgvc.sgvc_backend.service.RayonService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +15,6 @@ public class RayonController {
 
     private final RayonService rayonService;
 
-    @Autowired
     public RayonController(RayonService rayonService) {
         this.rayonService = rayonService;
     }
@@ -34,16 +33,22 @@ public class RayonController {
         return ResponseEntity.ok(rayon);
     }
 
+    // GET /api/rayons/recherche?q=ali → recherche par nom
+    @GetMapping("/recherche")
+    public ResponseEntity<List<Rayon>> rechercher(@RequestParam String q) {
+        return ResponseEntity.ok(rayonService.rechercher(q));
+    }
+
     // POST /api/rayons → créer un nouveau rayon
     @PostMapping
-    public ResponseEntity<Rayon> createRayon(@RequestBody Rayon rayon) {
+    public ResponseEntity<Rayon> createRayon(@Valid @RequestBody Rayon rayon) {
         Rayon nouveauRayon = rayonService.createRayon(rayon);
         return ResponseEntity.status(HttpStatus.CREATED).body(nouveauRayon);
     }
 
     // PUT /api/rayons/5 → modifier un rayon existant
     @PutMapping("/{id}")
-    public ResponseEntity<Rayon> updateRayon(@PathVariable Long id, @RequestBody Rayon rayon) {
+    public ResponseEntity<Rayon> updateRayon(@PathVariable Long id, @Valid @RequestBody Rayon rayon) {
         Rayon rayonModifie = rayonService.updateRayon(id, rayon);
         return ResponseEntity.ok(rayonModifie);
     }

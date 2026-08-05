@@ -2,7 +2,7 @@ package com.sgvc.sgvc_backend.controller;
 
 import com.sgvc.sgvc_backend.entity.Client;
 import com.sgvc.sgvc_backend.service.ClientService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +15,6 @@ public class ClientController {
 
     private final ClientService clientService;
 
-    @Autowired
     public ClientController(ClientService clientService) {
         this.clientService = clientService;
     }
@@ -30,14 +29,20 @@ public class ClientController {
         return ResponseEntity.ok(clientService.getClientById(id));
     }
 
+    // GET /api/clients/recherche?q=jean → recherche par nom ou prénom
+    @GetMapping("/recherche")
+    public ResponseEntity<List<Client>> rechercher(@RequestParam String q) {
+        return ResponseEntity.ok(clientService.rechercher(q));
+    }
+
     @PostMapping
-    public ResponseEntity<Client> createClient(@RequestBody Client client) {
+    public ResponseEntity<Client> createClient(@Valid @RequestBody Client client) {
         Client nouveauClient = clientService.createClient(client);
         return ResponseEntity.status(HttpStatus.CREATED).body(nouveauClient);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Client> updateClient(@PathVariable Long id, @RequestBody Client client) {
+    public ResponseEntity<Client> updateClient(@PathVariable Long id, @Valid @RequestBody Client client) {
         return ResponseEntity.ok(clientService.updateClient(id, client));
     }
 
